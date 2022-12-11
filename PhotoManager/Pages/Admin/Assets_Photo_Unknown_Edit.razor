@@ -1,0 +1,117 @@
+@page "/admin/assets/photos/unknown/{photoId:guid}"
+
+@attribute [Authorize(Policy = "AdminOnly")]
+
+@layout AdminLayout
+
+@using PhotoManager.Data;
+@using Microsoft.EntityFrameworkCore;
+
+@inject IDbContextFactory<PhotoDbContext> PhotoDb
+@inject NavigationManager Navigator
+
+@implements IDisposable
+
+<PageTitle>Unknown tags - Photo Manager (Admin console)</PageTitle>
+
+<div class="flex flex-col gap-6">
+    <GoToTopButton Href="/admin/assets/photos" PreviousButton="true" />
+    <PageHeadTitle TitleContent="@(photo.File_name)" />
+
+    @{
+        var ThumbnailLink = $"/thumbnail/{photo.PhotoId}/thumbnail.webp";
+    }
+
+    <img loading="lazy" class="object-contain h-64" src="@ThumbnailLink" />
+
+    @if(SuccessMessage != String.Empty)
+    {
+        <div class="bg-sky-200 text-black">
+            @SuccessMessage
+        </div>
+    }
+
+    <div>
+        <EditForm Model="photo" OnValidSubmit="UpdateItem">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                    <div>
+                        <p class="mb-3">Manufacturer</p>
+                        <InputText class="@TextBoxStyle" @bind-Value="photo.Maker" />
+                    </div>
+                    <div>
+                        <p class="mb-3">Model</p>
+                        <InputText class="@TextBoxStyle" @bind-Value="photo.Model" />
+                    </div>
+                    <div>
+                        <p class="mb-3">Digitized datetime</p>
+                        <InputDate class="@TextBoxStyle" @bind-Value="photo.Original_datetime" />
+                    </div>
+                    <div>
+                        <p class="mb-3">Export datetime</p>
+                        <InputDate class="@TextBoxStyle" @bind-Value="photo.Export_datetime" />
+                    </div>
+                    <div>
+                        <p class="mb-3">Aperture (f-value)</p>
+                        <InputNumber class="@TextBoxStyle" @bind-Value="photo.Aperture" />
+                    </div>
+                    <div>
+                        <p class="mb-3">Shutter speed</p>
+                        <InputNumber class="@TextBoxStyle" @bind-Value="photo.Shutter_speed" />
+                    </div>
+                    <div>
+                        <p class="mb-3">ISO</p>
+                        <InputNumber class="@TextBoxStyle" @bind-Value="photo.Iso" />
+                    </div>
+            </div>
+            <button type="submit" class="border rounded border-cyan-600 px-4 py-2 text-gray-600 text-sm">Submit</button>
+        </EditForm>
+    </div>
+</div>
+
+
+
+
+@code {
+    [Parameter] public Guid photoId { get; set; }
+
+    PhotoDbContext? photoDbContext;
+    Photo? photo;
+
+    private string SuccessMessage { get; set; } = String.Empty;
+
+    private string TextBoxStyle = "basis-4/5 w-full py-2 px-3 text-gray-500 border rounded";
+
+    protected override void OnInitialized()
+    {
+        photoDbContext = PhotoDb.CreateDbContext();
+        photo = photoDbContext.Photos.Single(s => s.PhotoId == photoId);
+
+        if (photo is null)
+        {
+            Navigator.NavigateTo("/admin/assets/photos/unknown");
+        }
+
+        base.OnInitialized();
+    }
+
+    private async void UpdateItem()
+    {
+        try {
+            photoDbContext.Photos.Update(photo);
+
+            await photoDbContext.SaveChangesAsync();
+
+            SuccessMessage = "Successfully Updated!";
+        }
+        catch
+        {
+            SuccessMessage = "Oops! Error...";
+        }
+    }
+
+    public void Dispose()
+    {
+        photo = null;
+        photoDbContext = null;
+    }
+}

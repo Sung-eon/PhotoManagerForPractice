@@ -1,0 +1,49 @@
+@page "/directory/album/{AlbumName}"
+
+@using PhotoManager.Data
+@using Microsoft.EntityFrameworkCore
+
+@inject IDbContextFactory<PhotoDbContext> PhotoDb
+@inject NavigationManager Navigator
+
+@implements IDisposable
+
+<PageTitle>[Directory / Albums] @AlbumName - Photo Manager</PageTitle>
+<PageHeadTitle TitleContent="@AlbumName" SubtitleContent="Album" />
+
+<MediaDateGrid photos="photos" />
+
+@code {
+    [Parameter] public string AlbumName { get; set; }
+
+    private PhotoDbContext? photoDbContext;
+    private IQueryable<Photo>? photos;
+
+    protected override void OnInitialized()
+    {
+        photoDbContext = PhotoDb.CreateDbContext();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (AlbumName is null || !photoDbContext.Albums.Any(s => s.Name == AlbumName))
+        {
+            Navigator.NavigateTo("/directory/album");
+        }
+
+        Album album = photoDbContext.Albums.Single(s => s.Name == AlbumName);
+
+        photos = photoDbContext.Articles
+        .Include(s => s.Albums)
+        .Where(s => s.Albums.Contains(album))
+        .Select(s => s.Photo);
+
+        base.OnParametersSet();
+    }
+
+    public void Dispose()
+    {
+        photoDbContext = null;
+        photos = null;
+    }
+}    

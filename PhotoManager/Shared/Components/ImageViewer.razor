@@ -1,0 +1,55 @@
+@inherits BackgroundStyle
+
+@inject NavigationManager Navigator
+
+@implements IPopupStyle
+
+
+@if (GridThumbnail)
+{
+    <img loading="lazy" class="object-cover cursor-pointer w-full h-48 rounded-sm" src="/thumbnail/@PhotoId.ToString()/thumbnail.webp" @onclick="OpenPopup" />
+}
+else
+{
+    <img loading="lazy" class="cursor-pointer" src="/thumbnail/@PhotoId.ToString()/thumbnail.webp" @onclick="OpenPopup" />
+}
+
+@if(!HiddenSwitch)
+{
+    <div class="@GetBackgroundStyle(HiddenSwitch)">
+        <div class="m-auto border rounded p-5 w-full max-h-fit max-w-md sm:max-w-lg md:max-w-xl lg:max-w-3xl xl:max-w-4xl static bg-white shadow-md">
+            <div class="flex flex-col gap-6">
+                <img loading="lazy" class="cursor-pointer" src="/thumbnail/@PhotoId.ToString()/preview_2x.webp" @onclick="ClosePopup" />
+                @if(Navigator.Uri != Navigator.ToAbsoluteUri($"/view/{PhotoId}").ToString())
+                {
+                    <button class="border rounded border-sky-400 px-3 py-2 text-gray-600 hover:bg-sky-400 hover:text-white" @onclick="MoveToDetailPage">View</button>
+                }
+                <p class="text-gray-400 text-sm">Press the image to close this window</p>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    public bool HiddenSwitch { get; set; } = true;
+    
+    [Parameter] public Guid PhotoId { get; set; }
+    [Parameter] public bool GridThumbnail { get; set; } = false;
+
+    private void OpenPopup()
+    {
+        HiddenSwitch = false;
+    }
+
+    public void ClosePopup()
+    {
+        HiddenSwitch = true;
+    }
+
+    private void MoveToDetailPage()
+    {
+        Navigator.NavigateTo($"/view/{PhotoId}");
+    }
+
+}

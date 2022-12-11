@@ -1,0 +1,71 @@
+@page "/recent"
+
+@using Microsoft.EntityFrameworkCore
+@using PhotoManager.Data
+
+@implements IDisposable
+
+@inject IDbContextFactory<PhotoDbContext> PhotoDb
+@inject NavigationManager Navigator
+
+<PageTitle>[Recent] - Photo Manager</PageTitle>
+<PageHeadTitle TitleContent="Recent photos" />
+
+@if (photos is not null)
+{
+    <MediaDateGrid photos="photos" />
+}
+
+@code {
+
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public int QueryStart { get; set; } = 0;
+
+    PhotoDbContext? photoDbContext;
+    IQueryable<Photo>? photos;
+
+    private class DataSelectModel
+    {
+        public OrderByEnum orberby { get; set; } = OrderByEnum.Export_datetime;
+    }
+    DataSelectModel dataSelectModel = new();
+
+    private enum OrderByEnum
+    {
+        Height = 0,
+        Width = 1,
+        Dpi = 2,
+        Export_datetime = 3,
+        Exposure = 4,
+        Aperture = 5,
+        Iso = 6,
+        Focal_length_in_35 = 7
+    }
+
+    private string selectBoxStyle = "border border-zinc-400 p-3 w-full rounded";
+
+    protected override void OnInitialized()
+    {
+        photoDbContext = PhotoDb.CreateDbContext();
+
+        photos = photoDbContext.Photos
+        .Where(s => s.Export_datetime != null)
+        .OrderByDescending(s => s.Export_datetime)
+        .Skip(QueryStart * 30)
+        .Take(30);
+
+        base.OnInitialized();
+
+        if (!photos.Any())
+        {
+            Navigator.NavigateTo("/");
+        }
+    }
+    
+    public void Dispose()
+    {
+        photoDbContext = null;
+        photos = null;
+    }
+}

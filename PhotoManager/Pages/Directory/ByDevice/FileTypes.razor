@@ -1,0 +1,109 @@
+@page "/directory/device/{Manufacturer}/{Device}"
+
+@using Microsoft.EntityFrameworkCore
+@using PhotoManager.Data
+
+@inject NavigationManager Navigator
+@inject IDbContextFactory<PhotoDbContext> PhotoDb
+
+@implements IDisposable
+
+<PageTitle>[Directory / Devices] @Manufacturer, @Device - Photo Manager</PageTitle>
+
+<GoToTopButton Href="directory/device" />
+
+@if (ImageTypes is null || !ImageTypes.Any())
+{
+    <span>No pictures available</span>
+}
+else
+{
+    var PageTitleContent = $"[{Manufacturer}] {Device}";
+    <PageHeadTitle TitleContent="@PageTitleContent" />
+
+    <div class="flex flex-col gap-y-8">
+        <div>
+            <h4 class="text-xl font-semibold mb-4">View by file types(formats)</h4>
+            <div class="grid grid-cols-2 xl:grid-cols-3 gap-6 mb-6">
+                @foreach (string fileType in ImageTypes)
+                {
+                    <a href="/directory/device/@Manufacturer/@Device/@fileType">
+                        <div class="@BorderStyle">
+                            <span>@fileType</span>
+                        </div>
+                    </a>
+                }
+            </div>
+        </div>
+
+        <div>
+            <h4 class="text-xl font-semibold mb-6">Edited or RAW</h4>
+            <div class="grid grid-cols-2 xl:grid-cols-3 gap-6">
+                <a href="/directory/device/@Manufacturer/@Device/all_types">
+                    <div class="@BorderStyle">
+                        <span>All types</span>
+                    </div>
+                </a>
+                <a href="/directory/device/@Manufacturer/@Device/edited_files">
+                    <div class="@BorderStyle">
+                        <span>Edited Files</span>
+                    </div>
+                </a>
+                <a href="/directory/device/@Manufacturer/@Device/raw_files">
+                    <div class="@BorderStyle">
+                        <span>RAW files</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+
+    [Parameter] public string Manufacturer { get; set; }
+    [Parameter] public string Device { get; set; }
+
+    private string BorderStyle = "border p-3 rounded hover:border-sky-400 hover:border text-sky-600";
+
+    IQueryable<string?>? ImageTypes;
+    private PhotoDbContext? photoDbContext;
+    private IQueryable<Photo>? photos;
+
+    protected override void OnParametersSet()
+    {
+        if (Manufacturer is null || Device is null)
+        {
+            Navigator.NavigateTo("/directory");
+        }
+        else
+        {
+            photoDbContext = PhotoDb.CreateDbContext();
+            photos = photoDbContext.Photos;
+
+            if (!photos.Any())
+            {
+                Navigator.NavigateTo("/");
+            }
+
+            ImageTypes = photos.Where(s => s.Model.ToLower() == Device.ToLower())
+                    .Select(s => s.File_format)
+                    .Distinct();
+
+            base.OnParametersSet();
+
+            if (!ImageTypes.Any())
+            {
+                Navigator.NavigateTo("/directory");
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        photoDbContext = null;
+        ImageTypes = null;
+        photos = null;
+    }
+}

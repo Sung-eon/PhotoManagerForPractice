@@ -1,0 +1,14 @@
+@if(SubtitleContent is null) 
+{
+    <h1 class="mb-8 text-4xl font-thin">@TitleContent</h1>
+}
+else 
+{
+    <h1 class="mb-4 text-4xl font-thin">@TitleContent</h1>
+    <h2 class="mb-8 text-2xl font-medium text-gray-400">@SubtitleContent</h2>
+}
+
+@code {
+    [Parameter] public string TitleContent { get; set; }
+    [Parameter] public string? SubtitleContent { get; set; }
+}

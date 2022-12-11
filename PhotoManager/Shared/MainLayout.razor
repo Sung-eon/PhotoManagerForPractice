@@ -1,0 +1,96 @@
+﻿@inherits LayoutComponentBase
+
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+
+@inject ProtectedLocalStorage LocalStorage
+@inject NavigationManager Navigator
+
+
+<div class="flex flex-col md:flex-row h-screen max-h-screen w-screen">
+    <div class="sm:hidden h-auto md:h-screen p-5 bg-slate-100">
+            <div class="sm:hidden">
+                <h2 class="font-light text-2xl py-1">Photo Manager</h2>
+            </div>
+            <div class="hidden">
+                @foreach (SidebarItemType item in sidebarItems)
+                {
+                    <a href="@item.link" class="@plainLinkStyle()">
+                            <span class="oi @item.icon mr-4"></span>
+                            <span>@item.text</span>
+                    </a>
+                }
+                <AuthorizeView>
+                    <Authorized>
+                        @if (context.User.IsInRole("Administrator"))
+                        {
+                            <a href="/admin" class="@plainLinkStyle()">
+                            admin
+                            </a>
+                        }
+                        <a href="Identity/Account/Manage" class="@plainLinkStyle()">
+                            Profile
+                        </a>
+                        <a href="Identity/Account/Logout" class="@plainLinkStyle()">
+                            Logout
+                        </a>
+                    </Authorized>
+                    <NotAuthorized>
+                        <a href="Identity/Account/Login" class="@plainLinkStyle()">
+                            Login
+                        </a>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+    </div>
+    <div id="content" class="mainContentShrink w-full sm:overflow-y-scroll">
+        <div class="px-4 py-6 sm:px-8 sm:py-8 h-max">
+            <div class="flex space-x-8 overflow-x-scroll">
+                @foreach (SidebarItemType item in mainSelectBar)
+                {
+                        <a class="text-2xl pb-2 font-bold @SelectBarItemColor(item.text.ToLower()) @hoverStyle()"
+                    @onclick="(() => this.selected = item.text.ToLower())"
+                    href="@item.link">
+                        @item.text
+                        </a>
+                }
+            </div>
+            <div class="sm:overflow-y-scroll sm:h-auto sm:mt-0 py-3">
+                @Body
+            </div>
+        </div>
+        <footer class="bg-sky-50/60 text-center py-3 flex flex-col gap-4">
+            <p class="text-sm text-gray-600">Made by S.E Park</p>
+            <div class="flex gap-3 justify-center">
+                <AuthorizeView>
+                    <Authorized>
+                        <a class="text-sm text-gray-600" href="/admin">admin console</a>
+                        <a class="text-sm text-gray-600" href="/Identity/Account/Logout/">Logout</a>
+                    </Authorized>
+                    <NotAuthorized>
+                        <a class="text-sm text-gray-600" href="/admin">Login as admin</a>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+        </footer>
+    </div>
+</div>
+
+<ErrorMessagePopupLayout />
+
+@code {
+   
+    protected override void OnParametersSet()
+    {
+        if (Navigator.BaseUri == Navigator.Uri)
+        {
+            selected = "home";
+        }
+        else
+        {
+            selected = Navigator.Uri.Replace(Navigator.BaseUri, "").Split("/").First();
+        }
+
+        base.OnParametersSet();
+    }
+
+} 

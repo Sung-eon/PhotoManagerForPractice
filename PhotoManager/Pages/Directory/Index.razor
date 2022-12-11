@@ -1,0 +1,126 @@
+@page "/directory"
+
+@using PhotoManager.Data
+@using Microsoft.EntityFrameworkCore
+
+@inject IDbContextFactory<PhotoDbContext> PhotoDb
+
+@implements IDisposable
+
+<PageTitle>Directory - Photo Manager</PageTitle>
+<PageHeadTitle TitleContent="Select a category" />
+
+<div class="grid grid-cols-1 gap-6">
+    @if (photos is not null)
+    {
+        var UniqueModels = photos
+        .Select(s => new { s.Maker, s.Model, s.File_name, s.PhotoId })
+        .AsEnumerable()
+        .OrderBy(s => Guid.NewGuid())
+        .Take(12);
+
+        string DirectoryCategoryStyle = "border rounded px-4 py-6 bg-white drop-shadow-sm hover:border-sky-400";
+        string TitleStyle = "text-3xl font-light mb-5";
+
+        <div class="sm:flex sm:gap-8 text-gray-600 mb-6">
+            <div class="sm:basis-1/3">
+                <div class="flex flex-col gap-8">
+                    <div class="@DirectoryCategoryStyle">
+                        <h2 class="@TitleStyle">Devices</h2>
+                        @{
+                            var distinctDevices = photos
+                            .Select(s => new { s.Maker, s.Model })
+                            .Distinct();
+
+                            int distinctDeviceNumber = distinctDevices.Count();
+                        }
+                        <p class="mb-3">@distinctDeviceNumber devices</p>
+                        <div class="flex flex-wrap gap-3 mb-6">
+                            @foreach (var item in distinctDevices.OrderBy(s => s.Model).Take(6))
+                            {
+                                <span class="w-24">
+                                    <p class="text-xs truncate">@item.Model</p>
+                                    <p class="text-xs text-gray-400">@item.Maker</p>
+                                </span>
+                            }
+                        </div>
+                        <DirectoryMoveButton Link="/directory/device" />
+                    </div>
+                    <div class="@DirectoryCategoryStyle">
+                        @{
+                            var UniquePlaces = photos
+                            .Select(s => new { s.Place_country, s.Place_city, s.Place_province })
+                            .Distinct()
+                            .OrderBy(s => s.Place_country);
+                        }
+                        <h2 class="@TitleStyle">Places</h2>
+                        <p class="mb-3">@(UniquePlaces.Count()) Places</p>
+                        <DirectoryMoveButton Link="/directory/place" />
+                    </div>
+                    @if(albums.Any())
+                    {
+                        <div class="@DirectoryCategoryStyle">
+                            <h2 class="@TitleStyle">Albums</h2>
+                            <p class="mb-3">@(albums is not null ? albums.Count() : 0) albums</p>
+                            <DirectoryMoveButton Link="/directory/album" />
+                        </div>
+                    }
+                    @if(tags.Any())
+                    {
+                        <div class="@DirectoryCategoryStyle">
+                            <h2 class="@TitleStyle">Tags</h2>
+                            <p class="mb-3">@(tags is not null ? tags.Count() : 0) tags</p>
+                            <DirectoryMoveButton Link="/directory/tag" />
+                        </div>
+                    }
+                </div>
+            </div>
+            <div class="hidden sm:inline sm:basis-2/3">
+                <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-3 ">
+                    @foreach (var item in UniqueModels)
+                    {
+                        <div>
+                            <ImageViewer GridThumbnail="true" PhotoId="@item.PhotoId" />
+                            <p class="my-3 text-sm text-gray-400">@item.Maker - @item.Model</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <p class="text-gray-400 text-sm">
+            <strong class="font-bold">@photos.Count()</strong> photos has been indexed
+        </p>
+    }
+</div>
+
+@code {
+    private PhotoDbContext? photoDbContext;
+    private IQueryable<Photo>? photos;
+    private IQueryable<string>? tags;
+    private IQueryable<Album>? albums;
+
+    protected override void OnInitialized()
+    {
+        photoDbContext = PhotoDb.CreateDbContext();
+
+        photos = photoDbContext.Photos                            
+        .Where(s => s.Export_datetime != null);
+
+        tags = photoDbContext.ArticleTags
+        .Select(s => s.Name)
+        .Distinct();
+        
+        albums = photoDbContext.Albums;
+
+        base.OnInitialized();
+    }
+
+    public void Dispose()
+    {
+        photoDbContext = null;
+        photos = null;
+        tags = null;
+    }
+}
+

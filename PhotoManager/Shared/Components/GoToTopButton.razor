@@ -1,0 +1,26 @@
+<div class="mb-6 flex gap-3">
+    <p class="text-sm text-gray-400">Go</p>
+    <a class="@TextStyle" href="@Href">Top page</a>
+    @if (ParentHref is not null)
+    {
+        <a class="@TextStyle" href="@ParentHref">Parent page</a>
+    }
+    @if (PreviousButton)
+    {
+        <button class="@TextStyle" onclick="window.history.back()">Previous page</button>
+    }
+</div>
+
+@code {
+
+    [Parameter] 
+    public string Href { get; set; }
+
+    [Parameter] 
+    public string ParentHref { get; set; }
+
+    [Parameter] 
+    public bool PreviousButton { get; set; } = false;
+
+    private string TextStyle = "text-sm text-gray-400 hover:text-sky-600";
+}

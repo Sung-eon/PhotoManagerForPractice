@@ -1,0 +1,4 @@
+dotnet aspnet-codegenerator identity -dc PhotoManager.Data.ApplicationDbContext --files "Account.Manage.PersonalData;Account.Manage.DeletePersonalData"
+
+// List files
+dotnet aspnet-codegenerator identity -lf

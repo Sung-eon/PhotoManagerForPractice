@@ -1,0 +1,44 @@
+@using PhotoManager.Data
+
+<div class="border rounded-lg drop-shadow bg-white hover:drop-shadow-lg">
+    <img class="object-cover w-full h-48 rounded-t-lg" src="/thumbnail/@Model.PhotoId/preview_4x.webp" />
+    <div class="px-4 py-5 flex flex-col gap-4">
+        <div>
+            <h3 class="text-2xl font-light mb-2">@_cardTitle()</h3>
+            @if(CardSubtitle is not null)
+            {
+                <h5 class="text text-gray-600 mb-2">@CardSubtitle</h5>
+            }
+            @if(ShowDateTimeLine)
+            {
+                <h5 class="text-sm text-gray-400">@Model.Export_datetime?.ToString("yyyy-MM-dd")</h5>
+                <h5 class="text-sm text-gray-400">@Model.Export_datetime?.ToString("HH:mm")</h5>
+            }
+        </div>
+        @if (BodyContent is not null)
+        {
+            <div>
+                @BodyContent
+            </div>
+        }
+        <a class="w-full" href="@_buttonLink()">
+            <button class="text-left w-full text-gray-600 border rounded hover:bg-sky-400 hover:text-white px-3 py-2">
+                @ButtonLabel
+            </button>
+        </a>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Photo Model { get; set; }
+    [Parameter] public RenderFragment? BodyContent { get; set; }
+    [Parameter] public string? ButtonLink { get; set; }
+    [Parameter] public string? CardTitle { get; set; }
+    [Parameter] public string? CardSubtitle { get; set; }
+    [Parameter] public string ButtonLabel { get; set; } = "Go";
+    [Parameter] public bool ShowDateTimeLine { get; set; } = true;
+
+    private string _buttonLink() => ButtonLink is not null ?  ButtonLink : $"/view/{Model.PhotoId}";
+    private string _cardTitle() => CardTitle is not null ? CardTitle : Model.File_name;
+
+}

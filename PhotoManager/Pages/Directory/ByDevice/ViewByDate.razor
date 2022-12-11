@@ -1,0 +1,277 @@
+@page "/directory/device/{Manufacturer}/{Device}/{FileType}"
+
+@using Microsoft.EntityFrameworkCore
+@using PhotoManager.Data
+
+@inject NavigationManager Navigator
+@inject IDbContextFactory<PhotoDbContext> PhotoDb
+@inject IJSRuntime JS
+
+@implements IDisposable
+
+<PageTitle>[Directory / Devices] @(Manufacturer)_@(Device).@(FileType) - Photo Manager</PageTitle>
+@{
+    string TopLink = $"/directory/device/{Manufacturer}/{Device}";
+}
+<GoToTopButton Href="/directory/device" ParentHref="@TopLink" />
+
+<div class="flex flex-col gap-8 mb-8">
+    <div>
+        <h1 class="text-3xl sm:text-4xl font-light mb-3">[@Manufacturer] @Device</h1>
+        @switch (FileType)
+        {
+            case "all_types":
+                <h3 class="text-2xl font-medium text-gray-400">All file type</h3>
+                break;
+            case "raw_files":
+                <h3 class="text-2xl font-medium text-gray-400">RAW files</h3>
+                break;
+            case "edited_files":
+                <h3 class="text-2xl font-medium text-gray-400">Edited files</h3>
+                break;
+            default:
+                <h3 class="text-2xl font-medium text-gray-400">@FileType</h3>
+                break;
+        }
+    </div>
+
+    <div class="w-full @FilterFoldedBackground()">
+        <div class="text-lg w-full font-medium p-3 cursor-pointer @FilterFoldedTitleStyle()"
+             @onclick="() => FilterFolded = !FilterFolded">
+            Filters
+        </div>
+        <EditForm Model="photoFilterInputModel" OnValidSubmit="SetFilter">
+            <div class="@FilterFoldedStyle()">
+                <div class="flex flex-col gap-2">
+                    <span>Date Start</span>
+                    <InputDate @bind-Value="photoFilterInputModel._DateStart" />
+                </div>
+
+                <div class="flex flex-col gap-2">
+                    <span class="DateTimeError()">Date End</span>
+                    @if (photoFilterInputModel._DateStart.Ticks > photoFilterInputModel._DateEnd.Ticks)
+                    {
+                        <p>Set range properly</p>
+                    }
+                    <InputDate @bind-Value="photoFilterInputModel._DateEnd" />
+                </div>
+
+                <button class="text-indigo-400 px-4 py-2" type="submit">Filter</button>
+                <button class="text-indigo-400 px-4 py-2" @onclick="ResetFilter">Reset</button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@if (photos is not null && photos.Any())
+{
+    <div class="flex flex-col gap-10">
+        <div class="flex justify-between gap-6">
+            @if (QueryStart >= 1)
+            {
+                <button class="@PageButtonStyle" @onclick="PreviousPage">Previous</button>
+            }
+            @if (photos.Count() == 30)
+            {
+                <button class="@PageButtonStyle" @onclick="NextPage">Next</button>
+            }
+        </div>
+
+        <MediaDateGrid photos="photos" />
+    
+        <div class="flex justify-between gap-6">
+            @if (QueryStart >= 1)
+            {
+                <button class="@PageButtonStyle" @onclick="PreviousPage">Previous</button>
+            }
+            @if (photos.Count() == 30)
+            {
+                <button class="@PageButtonStyle" @onclick="NextPage">Next</button>
+            }
+        </div>
+    </div>
+}
+else if (photos is not null && !photos.Any())
+{
+    <h1 class="text-2xl font-bold">Set filters properly!</h1>
+}
+else
+{
+    <div class="flex flex-col gap-6">
+        <h1 class="text-2xl font-bold">Could not find any photos</h1>
+        <div class="flex gap-4">
+            <h3 class="text-gray-400 text-lg my-auto basis-1/12 w-full">Go to</h3>
+            <button class="@PageButtonStyle" @onclick="FirstPage">The first page</button>
+            <button class="@PageButtonStyle" @onclick="TopDirectoryPage">The top directory page</button>
+        </div>
+    </div>
+}
+
+
+@code {
+    [Parameter] public string Manufacturer { get; set; }
+    [Parameter] public string Device { get; set; }
+    [Parameter] public string FileType { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public int QueryStart { get; set; } = 0;
+
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public int QuerySize { get; set; } = 30;
+
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public DateTime? DateStart { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public DateTime? DateEnd { get; set; }
+
+    private class PhotoFilterInputModel
+    {
+        public DateTime _DateStart { get; set; } = DateTime.Today.AddDays(1);
+        public DateTime _DateEnd { get; set; } = DateTime.Today.AddDays(1);
+    }
+
+    PhotoFilterInputModel photoFilterInputModel = new();
+
+    IQueryable<Photo>? photos;
+
+    private string PageButtonStyle = "p-3 basis-1/2 border rounded-lg border-sky-200 text-sky-400 hover:bg-sky-400 hover:text-white";
+    private bool FilterFolded = true;
+    private string FilterFoldedStyle()
+    {
+        return FilterFolded
+        ? "hidden"
+        : "block py-3 px-5 flex gap-x-8";
+    }
+    private string FilterFoldedTitleStyle()
+    {
+        return FilterFolded
+        ? "text-indigo-400 hover:bg-indigo-400 hover:text-white"
+        : "text-black hover:bg-indigo-400 hover:text-white";
+    }
+    private string? FilterFoldedBackground()
+    {
+        return !FilterFolded ? "p-3 border border-indigo-100" : null;
+    }
+
+    private void SetFilter()
+    {
+        List<string> QueryStringList = new();
+
+        if (photoFilterInputModel._DateStart.CompareTo(DateTime.Today) <= 0)
+        {
+            if (photoFilterInputModel._DateStart.Ticks < photoFilterInputModel._DateEnd.Ticks)
+            {
+                QueryStringList.Add($"DateStart={photoFilterInputModel._DateStart}&DateEnd={photoFilterInputModel._DateEnd}");
+            }
+        }
+
+        Navigator.NavigateTo($"{GetNewLink()}&{String.Join(",", QueryStringList)}");
+    }
+
+    private void ResetFilter()
+    {
+        photoFilterInputModel = new PhotoFilterInputModel();
+        Navigator.NavigateTo(GetNewLink());
+    }
+
+    private string DateTimeError()
+    {
+        return photoFilterInputModel._DateStart.Ticks > photoFilterInputModel._DateEnd.Ticks
+        ? "text-pink-600 p-3"
+        : "";
+    }
+
+    private string GetNewLink()
+    {
+        return $"{Navigator.BaseUri}directory/device/{Manufacturer}/{Device}/{FileType}?QueryStart={QueryStart}";
+    }
+
+    private void FirstPage()
+    {
+        QueryStart = 0;
+        Navigator.NavigateTo(GetNewLink());
+    }
+
+    private void TopDirectoryPage()
+    {
+        Navigator.NavigateTo("/directory");
+    }
+
+    private void PreviousPage()
+    {
+        QueryStart = QueryStart < 2 ? 0 : QueryStart - 1;
+
+        Navigator.NavigateTo(GetNewLink());
+    }
+
+    private void NextPage()
+    {
+        QueryStart += 1;
+        Navigator.NavigateTo(GetNewLink());
+    }
+
+    private PhotoDbContext? photoDbContext;
+
+    protected override void OnParametersSet()
+    {
+        if (Device is null || FileType is null)
+        {
+            Navigator.NavigateTo("/directory");
+        }
+        else
+        {
+            photoDbContext = PhotoDb.CreateDbContext();
+
+            photos = photoDbContext.Photos
+            .Where(s => s.Model.ToLower() == Device.ToLower())
+            .Where(s => s.Maker.ToLower() == Manufacturer.ToLower());
+
+            photos = FileType switch
+            {
+                "raw_files" => photos.Where(s => s.Export_datetime == s.Original_datetime),
+                "edited_files" => photos.Where(s => s.Export_datetime != s.Original_datetime),
+                "all_types" => photos,
+                _ => photos.Where(s => s.File_format == FileType)
+            };
+
+            if (DateStart is not null && DateEnd is not null)
+            {
+                photoFilterInputModel._DateStart = (DateTime)DateStart;
+                photoFilterInputModel._DateEnd = (DateTime)DateEnd;
+            }
+
+            if (photoFilterInputModel._DateStart.CompareTo(DateTime.Today) <= 0)
+            {
+                photos = photos
+                .Where(s => s.Export_datetime.Value.Ticks > photoFilterInputModel._DateStart.Ticks)
+                .Where(s => s.Export_datetime.Value.Ticks < photoFilterInputModel._DateEnd.Ticks);
+            }
+
+            photos = photos.OrderByDescending(s => s.Export_datetime).Skip(QueryStart * 30).Take(30);
+
+            base.OnParametersSet();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("ScrollToTop");
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    public void Dispose()
+    {
+        photoDbContext = null;
+        photos = null;
+    }
+}

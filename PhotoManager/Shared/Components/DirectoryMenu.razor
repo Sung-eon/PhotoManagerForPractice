@@ -1,0 +1,19 @@
+<div class="mb-8 flex gap-4">
+    <button class="cursor-none">Find by</button>
+    @foreach(SidebarItemType item in menuItems)
+    {
+        <a class="text-gray-600 hover:text-white" href="@item.link">
+            <button class="px-6 py-2 border rounded border-sky-400  hover:bg-sky-400 ">
+                @item.text
+            </button>
+        </a>
+    }
+</div>
+
+@code {
+    private List<SidebarItemType> menuItems = new() {
+        new SidebarItemType("/directory/device", "Devices"),
+        new SidebarItemType("/directory/area", "Areas"),
+        new SidebarItemType("/directory/album", "Albums"),
+    };
+}

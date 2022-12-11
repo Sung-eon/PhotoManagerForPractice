@@ -1,0 +1,43 @@
+@page "/directory/album"
+
+@using PhotoManager.Data
+@using Microsoft.EntityFrameworkCore
+
+@inject IDbContextFactory<PhotoDbContext> PhotoDb
+
+@implements IDisposable
+
+<PageTitle>[Directory] Albums - Photo Manager</PageTitle>
+<PageHeadTitle TitleContent="Albums" />
+
+@if (albums is not null)
+{
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+        @foreach (var item in albums)
+        {
+            <a href="/directory/album/@item.Name">@item.Name</a>
+        }
+    </div>
+}
+
+@code {
+    private PhotoDbContext? photoDbContext;
+    private IQueryable<Album>? albums;
+
+
+    protected override void OnInitialized()
+    {
+        photoDbContext = PhotoDb.CreateDbContext();
+        albums = photoDbContext.Albums.OrderBy(s => s.Name);
+
+
+        base.OnInitialized();
+    }
+
+    public void Dispose()
+    {
+        photoDbContext = null;
+        albums = null;
+    }
+}    

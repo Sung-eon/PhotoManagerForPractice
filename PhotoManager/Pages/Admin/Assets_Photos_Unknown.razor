@@ -1,0 +1,77 @@
+@page "/admin/assets/photos/unknown"
+
+@attribute [Authorize(Policy = "AdminOnly")]
+
+@layout AdminLayout
+
+@using PhotoManager.Data;
+@using Microsoft.EntityFrameworkCore;
+
+@inject IDbContextFactory<PhotoDbContext> PhotoDb
+@inject NavigationManager Navigator
+
+@implements IDisposable
+
+<PageTitle>[Directory / Devices] Unknown devices - Photo Manager</PageTitle>
+<PageHeadTitle TitleContent="Unknown devices" />
+
+@if(photos is not null)
+{
+    @if(photos.Any())
+    {
+        <div class="grid grid-cols-4 gap-6">
+            @foreach(var item in photos)
+            {
+                <div class="border rounded-lg drop-shadow bg-white">
+                    <img loading="lazy" class="object-cover w-full h-48 rounded-t-lg" src="/thumbnail/@item.PhotoId/thumbnail.webp" />
+                    <div class="px-4 py-5 flex flex-col gap-4">
+                        <h3 class="text-2xl font-light mb-2">@item.File_name</h3>
+                        <a class="p-3 border rounded w-full cursor-pointer text-black hover:bg-sky-400 hover:text-white" href="/admin/assets/photos/unknown/@item.PhotoId">Edit</a>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+
+    }
+    <div class="flex gap-6 mt-6 py-3">
+        <button>Previous</button>
+        <button>Next</button>
+    </div>
+}
+
+
+@code {
+    PhotoDbContext? photoDbContext;
+    IQueryable<Photo>? photos;
+
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public int QueryStart { get; set; } = 0;
+
+    protected override void OnInitialized()
+    {
+        photoDbContext = PhotoDb.CreateDbContext();
+        photos = photoDbContext.Photos
+            .Where(s => s.Model == "unknown" || s.Maker == "unknown")
+            .OrderBy(s => s.File_name)
+            .Skip(QueryStart * 30)
+            .Take(30);
+
+        if (!photos.Any())
+        {
+            Navigator.NavigateTo("/directory/device");
+        }
+
+        base.OnInitialized();
+    }
+
+    public void Dispose()
+    {
+        photos = null;
+        photoDbContext = null;
+    }
+
+}

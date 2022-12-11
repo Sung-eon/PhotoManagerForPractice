@@ -1,0 +1,51 @@
+@page "/view/exif"
+
+@using PhotoManager.Api.v1.Helper.Images
+@using PhotoManager.Data;
+
+@implements IDisposable
+
+<div class="mt-8">
+    <div class="mb-6 py-6 px-4 border rounded-lg border-slate-400">
+        <InputFile class="file:rounded-full file:border-0 file:bg-sky-200 file:text-sky-600 file:p-2 file:hover:bg-white file:hover:text-sky-600 file:hover:border-sky-400 file:text-sm mr-6"
+                   OnChange="OnFileUpload" accept='image/*' />
+    </div>
+    <div class="w-full">
+        <table class="table-auto w-full rounded-lg border border-gray-200 drop-shadow-lg">
+            <thead class="bg-sky-600 rounded-lg text-white">
+                <tr class="font-medium">
+                    <th class="p-3 text-left">Tag</th>
+                    <th class="p-3 text-left">Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Photo is not null)
+                {
+                    @foreach (var item in Photo.GetType().GetProperties())
+                    {
+                        <tr class="border-b bg-white hover:bg-sky-600 hover:text-white text-sm">
+                            <td class="p-3 ">@item.Name</td>
+                            <td class="p-3">@item.GetValue(Photo)</td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+@code {
+    Photo? Photo;
+
+    private async void OnFileUpload(InputFileChangeEventArgs e)
+    {
+        Photo = await ReadMetadata.Read(e.File);
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        Photo = null;
+    }
+}

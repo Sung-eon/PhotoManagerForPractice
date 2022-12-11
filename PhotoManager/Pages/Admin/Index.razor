@@ -1,0 +1,12 @@
+@page "/admin"
+
+@layout AdminLayout
+
+@attribute [Authorize(Policy = "AdminOnly")]
+
+<PageHeadTitle TitleContent="Admin console home" />
+
+
+@code {
+
+}

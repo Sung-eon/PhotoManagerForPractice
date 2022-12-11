@@ -1,0 +1,45 @@
+﻿@page
+@using Microsoft.AspNetCore.Identity
+@attribute [IgnoreAntiforgeryToken]
+@inject SignInManager<IdentityUser> SignInManager
+
+<div class="flex flex-col sm:flex-row h-full">
+    <div class="md:m-auto">
+        <h1 class="text-3xl font-thin mb-3">The logout process is completely done.</h1>
+        <p>Will be redirected to home page in 5 seconds</p>
+    </div>
+
+    <div class="md:m-auto flex flex-col gap-6">
+        <h2 class="text-xl font-medium">Move to</h2>
+        <a class="text-gray-600" href="/">Home</a>
+        <a class="text-gray-600" href="/Identity/Account/Login">Login</a>
+        <a class="text-gray-600" href="/Identity/Account/Login">Register</a>
+    </div>
+
+    <script>
+        setTimeout(() => {
+            window.location.href = "/";
+        }, 5000);
+    </script>
+</div>
+
+@functions {
+    public async void OnGet()
+    {
+        if (SignInManager.IsSignedIn(User))
+        {
+            await SignInManager.SignOutAsync();
+        }
+    }
+
+    public async Task<IActionResult> OnPost()
+    {
+        if (SignInManager.IsSignedIn(User))
+        {
+            await SignInManager.SignOutAsync();
+        }
+
+        return Redirect("~/");
+    }
+}
+

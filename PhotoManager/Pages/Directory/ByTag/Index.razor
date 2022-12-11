@@ -1,0 +1,75 @@
+@page "/directory/tag"
+
+@using PhotoManager.Data
+@using Microsoft.EntityFrameworkCore
+
+@inject IDbContextFactory<PhotoDbContext> PhotoDb
+@inject NavigationManager Navigator
+
+@implements IDisposable
+
+<PageTitle>[Directory] Tags - Photo Manager</PageTitle>
+<PageHeadTitle TitleContent="Tags" />
+
+@if (tags is not null)
+{
+    var grouppedTags = tags
+    .GroupBy(s => s.Name)
+    .Select(s => new { Key = s.Key, Value = s.Count() })
+    .OrderByDescending(s => s.Value)
+    .Take(50);
+
+    <div class="flex flex-col gap-6">
+        <h4 class="text-lg font-medium">Find by tags</h4>
+        <EditForm Model="searchBoxData" OnValidSubmit="FindPhoto">
+            <div class="flex gap-3">
+                <InputText class="px-2 py-2 border border-sky-400 rounded w-full basis-4/5 placeholder:italic placeholder:text-slate-400 placeholder:text-sm" 
+                placeholder="Find photos by tags" @bind-Value="searchBoxData.text" />
+                <button type="submit" class="border border-sky-400 rounded px-3 py-2 basis-1/5 hover:bg-sky-400 hover:text-white">Search</button>
+            </div>
+        </EditForm>
+
+        <div>
+            <h4 class="text-lg font-medium mb-6">Frequent tags</h4>
+            <div class="flex flex-wrap gap-6">
+                @foreach (var item in grouppedTags)
+                {
+                    <div class="flex divide-x border rounded">
+                        <a class="px-3 py-1 rounded-l text-sm" href="/directory/tag/find?name=@item.Key">@item.Key</a>
+                        <span class="px-2 py-1 text-sm">@item.Value</span>
+                        <button class="px-3 py-1 rounded-r hover:bg-sky-400 hover:text-white" @onclick="() => searchBoxData.Append(item.Key)">+</button>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    private PhotoDbContext? photoDbContext;
+    private IQueryable<ArticleTag>? tags;
+
+
+    protected override void OnInitialized()
+    {
+        photoDbContext = PhotoDb.CreateDbContext();
+
+        tags = photoDbContext.ArticleTags;
+
+        base.OnInitialized();
+    }
+
+    private SearchBoxType searchBoxData = new();
+
+    private void FindPhoto()
+    {
+        Navigator.NavigateTo(searchBoxData.GetTagSearchUrl());
+    }
+
+    public void Dispose()
+    {
+        photoDbContext = null;
+        tags = null;
+    }
+}

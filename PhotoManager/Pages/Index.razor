@@ -1,0 +1,149 @@
+﻿@page "/"
+
+@using PhotoManager.Data
+@using Microsoft.EntityFrameworkCore
+
+@inject IDbContextFactory<PhotoDbContext> PhotoDb
+@inject IConfiguration Configuration
+
+@implements IDisposable
+
+<PageTitle>Home - Photo Manager</PageTitle>
+
+<div class="flex flex-col gap-4 ">
+    <h1 class="text-4xl font-thin">Welcome to the Photo Manager <span class="px-3 py-1 text-sm bg-teal-600 font-medium text-white rounded-lg">Alpha</span></h1>
+
+    <p class="text-gray-600">
+        <strong class="text-sky-500">Photo Manager</strong> is a simple CMS(Content Management System) written in <a href="https://docs.microsoft.com/en-us/dotnet/core/introduction">.NET</a>(C#) with <a href="https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/blazor">blazor</a>.
+    </p>
+
+
+    @{
+        var CheckDbEmpty = IsDbEmpty();
+    }
+    @if (CheckDbEmpty is not null)
+    {
+        @if ((bool)CheckDbEmpty)
+        {
+            string AdminButtonStyle = "py-2 w-full border rounded text-rose-400 text-center border-rose-300 hover:bg-rose-400 hover:text-white";
+
+            <div class="px-5 py-4 rounded-lg bg-rose-50/70">
+                <div class="flex flex-col gap-6">
+                    <div class="border-b-2 border-rose-200 py-3">
+                        <h2 class="text-rose-500/80 text-3xl font-light">No photos indexed by far</h2>
+                    </div>
+
+                    <AuthorizeView Policy="AdminOnly">
+                        <Authorized>
+                            @{
+                                var PHOTO_ROOT_DIR = Environment.GetEnvironmentVariable("PHOTO_ROOT_DIR");
+                                var StressTextStyle = "text-sm bg-rose-400 border rounded bg-white text-rose-400 border-rose-400 py-1 px-3";
+                            }
+
+                            <h3 class="text-lg font-bold">Index photos first</h3>
+
+                            <div>
+                                <p class="leading-loose">Photo files in <i class="@StressTextStyle">@PHOTO_ROOT_DIR</i> will be indexed. In order to change the directory, you should change the enviroment variable, named <i class="@StressTextStyle">PHOTO_ROOT_DIR</i>.</p>
+                                <p class="leading-loose">You can also upload a single photo via the <a href="/admin/assets/photos/upload">upload page</a>.</p>
+                            </div>
+
+
+                            <button class="@ReadMoreButtonStyle()" @onclick="ReadMoreButtonModeChange">Read more</button>
+
+                            <div class="@ReadMoreGridStyle()">
+                                <div class="w-full">
+                                    <h4 class="font-medium">Windows users</h4>
+                                    <p>Soon...</p>
+                                </div>
+                                <div class="w-full">
+                                    <h4 class="font-medium">Linux users</h4>
+                                    <p>Soon...</p>
+                                </div>
+                                <div class="w-full">
+                                    <h4 class="font-medium">Docker on Synology NAS users</h4>
+                                    <p>Soon...</p>
+                                </div>
+                                <div class="w-full">
+                                    <h4 class="font-medium">Users who deployed on a cloud service</h4>
+                                    <p>Soon...</p>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-6">
+                                <a class="@AdminButtonStyle" href="/admin/assets/photos">Move to the indexing page</a>
+                                <a class="@AdminButtonStyle" href="/admin/assets/photos/upload">Upload photos</a>
+                            </div>
+
+                        </Authorized>
+                        <NotAuthorized>
+                            <h3 class="text-lg font-bold">Login required</h3>
+                            <a class="rounded border border-rose-300 px-4 py-2 text-rose-400 hover:bg-rose-400 hover:text-white"
+                               href="/Identity/Account/Login">Go</a>
+                        </NotAuthorized>
+                    </AuthorizeView>
+                </div>
+            </div>
+        }
+        else
+        {
+
+        }
+    }
+    else
+    {
+        <h2>Could not connect to the database server!</h2>
+    }
+</div>
+
+@code {
+    private PhotoDbContext? photoDbContext;
+    private IQueryable<Photo>? photos;
+
+    private bool ReadMoreSwitch = false;
+
+    private string ReadMoreButtonStyle()
+    {
+        string CommonStyle = "py-2 text-center rounded border";
+        return ReadMoreSwitch
+        ? $"{CommonStyle} bg-white border-rose-400 text-rose-400"
+        : $"{CommonStyle} bg-rose-400 text-white";
+    }
+
+    private void ReadMoreButtonModeChange()
+    {
+        ReadMoreSwitch = !ReadMoreSwitch;
+    }
+
+    private string ReadMoreGridStyle()
+    {
+        return ReadMoreSwitch
+        ? "grid grid-cols-1 sm:grid-cols-2 gap-4"
+        : "hidden";
+    }
+
+    protected override void OnInitialized()
+    {
+        photoDbContext = PhotoDb.CreateDbContext();
+        photos = photoDbContext.Photos;
+
+        base.OnInitialized();
+    }
+
+    private bool? IsDbEmpty()
+    {
+        if (photos is not null)
+        {
+            return !photos.Any();
+        }
+        else
+        {
+            return null;
+        }
+    }
+
+    public void Dispose()
+    {
+        photoDbContext = null;
+        photos = null;
+    }
+}

@@ -1,0 +1,67 @@
+@page "/admin/data_console"
+
+@layout AdminLayout
+
+@attribute [Authorize(Policy = "AdminOnly")]
+
+@using PhotoManager.Data;
+@using Microsoft.EntityFrameworkCore;
+
+@inject IDbContextFactory<PhotoDbContext> PhotoDb;
+
+@implements IDisposable
+
+<h1 class="mb-8 sm:text-3xl text-4xl font-thin">Data console</h1>
+
+@if (photos is not null)
+{
+    <div class="container overflow-x-scroll">
+        <table class="table-auto text-sm">
+            <thead>
+                <tr>
+                    @foreach (var col in photos.First().GetType().GetProperties())
+                    {
+                            <th class="py-6 px-4 border-b border-sky-400" scope="col">@col.Name</th>
+                    }
+                </tr>
+            </thead>
+            <tbody class="">
+                @foreach (var row in photos)
+                {
+                        <tr class="hover:bg-sky-100">
+                        @foreach (var col in row.GetType().GetProperties())
+                        {
+                                    <td class="p-4 border-b border-gray-200">@col.GetValue(row)</td>
+                        }
+                        </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public int QueryStart { get; set; } = 0;
+
+    private IQueryable<Photo>? photos;
+
+    protected override void OnInitialized()
+    {
+        using (PhotoDbContext photoDbContext = PhotoDb.CreateDbContext())
+        {
+            photos = photoDbContext.Photos.OrderBy(s => s.PhotoId).Skip(QueryStart).Take(50);
+        }
+
+        base.OnInitialized();
+        
+    }
+
+    public void Dispose()
+    {
+        photos = null;
+    }
+
+}

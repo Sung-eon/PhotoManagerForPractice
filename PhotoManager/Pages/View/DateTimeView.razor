@@ -1,0 +1,21 @@
+<div>
+    @if (Title is not null)
+    {
+        <h3 class="font-semibold">@Title</h3>
+    }
+    @if (_dateTime is not null)
+    {
+        <p class="text-gray-500">@_dateTime.Value.ToLongDateString()</p>
+        <p class="text-sm text-gray-500">@_dateTime.Value.ToShortTimeString()</p>
+    }
+    else
+    {
+        <span class="text-sm text-gray-500">Time data is not available</span>
+    }
+</div>
+
+@code {
+    [Parameter] public DateTime? _dateTime { get; set; }
+    [Parameter] public string? TimeOffset { get; set; }
+    [Parameter] public string? Title { get; set; }
+}

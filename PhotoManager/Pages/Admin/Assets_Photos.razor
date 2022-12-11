@@ -1,0 +1,217 @@
+@page "/admin/assets/photos"
+
+@layout AdminLayout
+
+@attribute [Authorize(Policy = "AdminOnly")]
+
+@using PhotoManager.Data
+@using Microsoft.EntityFrameworkCore
+@using PhotoManager.Api.v1.Helper.Auth
+@using PhotoManager.Api.v1.Service
+
+@inject NavigationManager Navigator
+@inject IDbContextFactory<PhotoDbContext> PhotoDb
+@inject TokenIssuer TokenIssuer
+@inject AuthenticationStateProvider GetAuthState
+@inject IJSRuntime JS
+@inject IIndexingService indexingService
+
+@implements IDisposable
+@implements IPageable
+
+<PageTitle>Photos database - Photo Manager (Admin console)</PageTitle>
+
+<PageHeadTitle TitleContent="Photos" />
+
+@if (photos is not null)
+{
+    int chunkSize = 12;
+
+    var PageButton = "px-6 rounded py-2 border border-cyan-600 text-gray-600";
+    var DisplayPhotos = photos.Skip(QueryStart * chunkSize).Take(chunkSize);
+
+    <div class="flex flex-col gap-5">
+        <div class="@CardStyle">
+            <h2 class="text-2xl">Indexing</h2>
+            <div class="text-gray-600">
+                @if (photos.Any())
+                {
+                    var modelGroup = photos.ToList().GroupBy(s => s.Model);
+                    var strongStyle = "text-cyan-600/80 font-bold";
+
+                    <ul class="list-none">
+                        <li>
+                            <strong class="@strongStyle">@(photos.Count())</strong>
+                            photos has been indexed
+                        </li>
+                        <li>
+                            <strong class="@strongStyle">@(modelGroup.Count())</strong> devices
+                        </li>
+                    </ul>
+                }
+                else
+                {
+                    <span>No photo is indexed here</span>
+                }
+            </div>
+            @if (indexingService.GetWorkPhase() != WorkPhase.BeforeStart)
+            {
+                <div class="flex flex-col gap-3">
+                    <p>@indexingService.GetWorkPhase().ToString()</p>
+                    <p>@indexingService.GetNumberOfCompletedWorks() / @indexingService.GetNumberOfAllWorks()</p>
+                </div>
+            }
+            @if (ClearMessage is not null)
+            {
+                <span class="text-sm text-gray-600">@ClearMessage</span>
+            }
+            <div class="flex gap-3">
+                <button class="p-2 border rounded text-gray-600 border-cyan-600 w-full hover:bg-cyan-600 hover:text-white" @onclick="StartIndexing">Start</button>
+                <button class="p-2 border rounded  text-gray-600 border-teal-500 w-full hover:bg-teal-500 hover:text-white" @onclick="ClearAllData">Clear</button>
+                <button disabled class="p-2 border rounded  text-gray-600 border-rose-400 w-full hover:bg-rose-400 hover:text-white">Cancel</button>
+            </div>
+        </div>
+
+
+        <div class="@CardStyle">
+            <h2 class="text-2xl">Photo assets</h2>
+            <div class="flex justify-between">
+                @if (QueryStart > 0)
+                {
+                    <button class="@PageButton" @onclick="MovePrevious">Previous</button>
+                }
+                else
+                {
+                    <span></span>
+                }
+                @if (DisplayPhotos.Count() == chunkSize)
+                {
+                    <button class="@PageButton" @onclick="MoveNext">Next</button>
+                }
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                @foreach (Photo item in DisplayPhotos)
+                {
+                    var ButtonLink = $"/admin/assets/photos/{item.PhotoId}";
+                    <ImageCard Model="item" ButtonLink="@ButtonLink" ButtonLabel="Detail" />
+                }
+            </div>
+            <div class="flex justify-between">
+                @if (QueryStart > 0)
+                {
+                    <button class="@PageButton" @onclick="MovePrevious">Previous</button>
+                }
+                else
+                {
+                    <span></span>
+                }
+                @if (DisplayPhotos.Count() == chunkSize)
+                {
+                    <button class="@PageButton" @onclick="MoveNext">Next</button>
+                }
+            </div>
+        </div>
+
+
+    </div>
+}
+else
+{
+    <h2 class="font-bold text-2xl">Could not connect to the database for photos</h2>
+}
+
+@code {
+
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public int QueryStart { get; set; } = 0;
+
+    private string? ClearMessage { get; set; }
+    private IQueryable<Photo>? photos;
+
+    private string CardStyle = "border rounded-lg p-6 w-full flex flex-col gap-6";
+
+    private PhotoDbContext? photoDbContext;
+    protected override void OnInitialized()
+    {
+        photoDbContext = PhotoDb.CreateDbContext();
+
+        photos = photoDbContext.Photos
+        .Where(s => s.Export_datetime != null)
+        .OrderByDescending(s => s.Export_datetime);
+
+        base.OnInitialized();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await JS.InvokeVoidAsync("ScrollToTop");
+    }
+
+    private async void StartIndexing()
+    {
+        bool IsFinished = false;
+
+        var IndexingWork = Task.Run(() => indexingService.StartAsync(CancellationToken.None));
+
+        while (!IsFinished)
+        {
+            if (IndexingWork.IsCompletedSuccessfully)
+            {
+                IsFinished = true;
+            }
+            else if (IndexingWork.IsCanceled)
+            {
+                IsFinished = true;
+            }
+            else if (IndexingWork.IsFaulted)
+            {
+                IsFinished = true;
+            }
+
+            StateHasChanged();
+
+            await Task.Delay(1500);
+        }
+    }
+
+    private async void ClearAllData()
+    {
+        await indexingService.ClearAll();
+
+        StateHasChanged();
+    }
+
+    private void CancelWork()
+    {
+    }
+
+    public void MovePrevious()
+    {
+        if (QueryStart > 0)
+        {
+            QueryStart -= 1;
+            Navigator.NavigateTo($"admin/assets/photos?QueryStart={QueryStart}");
+        }
+    }
+
+    public void MoveNext()
+    {
+        QueryStart += 1;
+        Navigator.NavigateTo($"admin/assets/photos?QueryStart={QueryStart}");
+    }
+
+    public void MoveFirst()
+    {
+        QueryStart = 0;
+        Navigator.NavigateTo($"admin/assets/photos?QueryStart={QueryStart}");
+    }
+
+    public void Dispose()
+    {
+        photoDbContext = null;
+        photos = null;
+    }
+
+}

@@ -1,0 +1,37 @@
+@inherits BackgroundStyle
+
+@implements IPopupStyle
+
+<div class="@GetBackgroundStyle(HiddenSwitch)">
+    <div class="m-auto border rounded p-5 w-full max-w-md sm:max-w-xl md:max-w-2xl lg:max-w-3xl static bg-white shadow-md">
+      @if(ShowCloseButton)
+      {
+        <div class="flex justify-end">
+          <button class="border rounded px-3 py-1 text-sm" @onclick="ClosePopup">
+            <span class="oi oi-delete"></span>
+            <span class="my-auto">close</span>
+          </button>
+        </div>
+      }
+        <div class="flex flex-col gap-6">
+            <h1 class="text-4xl font-light">@Title</h1>
+            <div class="break-all text-gray-600">@Description</div>
+            <div class="flex gap-6 justify-end">
+              @ModalButtons
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool HiddenSwitch { get; set; } = true;
+    [Parameter] public RenderFragment Title { get; set; }
+    [Parameter] public RenderFragment Description { get; set; }
+    [Parameter] public RenderFragment ModalButtons { get; set; }
+    [Parameter] public bool ShowCloseButton { get; set; } = true;
+
+    public void ClosePopup()
+    {
+      HiddenSwitch = true;
+    }
+}

@@ -1,0 +1,27 @@
+@using PhotoManager.Api.v1.Messages
+
+@inject MessagePopup Popup
+
+<div class="flex justify-center ">
+  <div class="@(BoxColor()) absolute rounded bottom-10 w-full h-16 max-w-sm text-white drop-shadow">
+    <div class="p-3 flex justify-between">
+      <p>@Popup._message</p>
+      <button class="border text-sm border-white p-1 rounded-lg" @onclick="ClosePopup">close</button>
+    </div>
+  </div>
+</div>
+
+@code {
+    private string BoxColor() => Popup._severity switch {
+        Severity.low => "bg-teal-500",
+        Severity.normal => "bg-sky-400",
+        Severity.high => "bg-rose-400",
+        _ => "hidden"
+    };
+
+    public void ClosePopup()
+    {
+      Popup.ClearMessage();
+    }
+
+}

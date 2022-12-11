@@ -1,0 +1,37 @@
+@using PhotoManager.Data
+
+<div class="flex flex-col gap-10">
+    @foreach (var item in photos.Select(s => s.Export_datetime.Value.Date).Distinct().OrderByDescending(s => s))
+    {
+        <div>
+            <div class="mb-6">
+                <h3 class="text-4xl mb-2 font-light">@item.ToString("yyyy")</h3>
+                <h3 class="text-3xl text-gray-400">@item.ToString("MM-dd")</h3>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5 gap-6">
+                @foreach (Photo model in photos.Where(s => s.Export_datetime.Value.Date == item))
+                {
+                    @if (ImageCardBodyContent is not null)
+                    {
+                        <ImageCard Model="model">
+                            <BodyContent>
+                                @ImageCardBodyContent
+                            </BodyContent>
+                        </ImageCard>
+                    }
+                    else
+                    {
+                        <ImageCard Model="model" />
+                    }
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public IEnumerable<Photo> photos { get; set; }
+    [Parameter] public RenderFragment? ImageCardBodyContent { get; set; }
+    [Parameter] public string ButtonLink { get; set; }
+}

@@ -1,0 +1,150 @@
+@page "/admin/assets/photos/upload"
+
+@layout AdminLayout
+
+@attribute [Authorize(Policy = "AdminOnly")]
+
+@using PhotoManager.Data
+@using Microsoft.EntityFrameworkCore
+@using PhotoManager.Api.v1.Helper.Images
+
+@inject NavigationManager Navigator
+@inject IDbContextFactory<PhotoDbContext> PhotoDb
+@inject IJSRuntime JS
+
+@implements IDisposable
+
+<PageTitle>Upload a photo - Photo Manager (Admin console)</PageTitle>
+
+<PageHeadTitle TitleContent="Upload a photo" />
+
+<div class="flex flex-col gap-6">
+
+    <div class="border rounded p-5 border-sky-400 bg-sky-50/70">
+        <h3 class="text-xl text-sky-600 mb-6">For those who want a bulk upload, use Photo Uploader</h3>
+        <p>Photo Uploader will be open in the future.</p>
+    </div>
+
+    <div>
+        <InputFile OnChange="QueueFiles" multiple accept='image/*' />
+    </div>
+
+    @if (uploadFiles.Any())
+    {
+        <div>
+            <button class="border rounded py-2 w-full border-sky-400 text-sky-600 hover:bg-sky-400 hover:text-white"
+                    @onclick="UploadAll">
+                Upload all
+            </button>
+        </div>
+    }
+
+    <div class="grid grid-cols-3 gap-5">
+        @foreach (UploadFileType image in uploadFiles)
+        {
+            <div class="border rounded p-5 flex flex-col justify-between gap-3 hover:border-sky-400">
+                <div>
+                    <h4 class="text-lg font-medium mb-3">@image.Content.Name</h4>
+                    <p class="text-gray-600 text-sm mb-3">@ToKBString(image.Content.Size) KB</p>
+                    <p class="text-gray-600 font-medium mb-1">Preview</p>
+                    <img src="@image.PreviewURL" @onload="() => RevokeURL(image.PreviewURL)" />
+                </div>
+                <button class="w-full py-2 rounded border border-sky-600 text-gray-600 font-medium"
+                        @onclick="() => UploadOne(image)">
+                    Upload
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+
+@code {
+    private record class UploadFileType(IBrowserFile Content, string PreviewURL);
+
+    private PhotoDbContext? photoDbContext;
+    private IQueryable<Photo>? photos;
+
+    private List<UploadFileType> uploadFiles = new();
+    private long maxFileSize = 50 * 1024 * 1024;
+
+    protected override void OnInitialized()
+    {
+        photoDbContext = PhotoDb.CreateDbContext();
+        photos = photoDbContext.Photos;
+
+        base.OnInitialized();
+    }
+
+    private async void QueueFiles(InputFileChangeEventArgs eventArgs)
+    {
+        uploadFiles.Clear();
+
+        foreach (var item in eventArgs.GetMultipleFiles())
+        {
+            var previewLink = await GetPreviewLink(item);
+            UploadFileType uploadFile = new UploadFileType(item, previewLink);
+            uploadFiles.Add(uploadFile);
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task UploadOne(UploadFileType uploadFile)
+    {
+        Photo Photo = await SaveNewPhoto.GetPhoto(uploadFile.Content);
+        Article article = SaveNewPhoto.GetArticle(Photo);
+
+        if (!photos.Any(s => s.File_path == Photo.File_path))
+        {
+            await photoDbContext.AddAsync(Photo);
+            await photoDbContext.Articles.AddAsync(article);
+
+            await photoDbContext.SaveChangesAsync();
+
+            var OriginalFilePath = Photo.File_path;
+            var PreviewFilePath = Photo.Thumbnail_path;
+
+            await GeneratePreview.ThumbnailWebP(OriginalFilePath, PreviewFilePath);
+            await GeneratePreview.PreviewFiles(OriginalFilePath, PreviewFilePath);
+        }
+    }
+
+    private async void UploadAll()
+    {
+        foreach (var item in uploadFiles)
+        {
+            await UploadOne(item);
+        }
+    }
+
+    private async Task<string> GetPreviewLink(IBrowserFile browserFile)
+    {
+        using DotNetStreamReference streamRef = new(stream: browserFile.OpenReadStream(maxFileSize));
+
+        string link = await JS.InvokeAsync<string>("GenerateObjectURL", streamRef);
+
+        return link;
+    }
+
+    private async void RevokeURL(string url)
+    {
+        await JS.InvokeVoidAsync("RevokeURL", url);
+    }
+
+    private double ToKB(long size)
+    {
+        return size / 1024;
+    }
+
+    private string ToKBString(long size)
+    {
+        return String.Format("{0:F1}", ToKB(size));
+    }
+
+    public void Dispose()
+    {
+        photoDbContext = null;
+        photos = null;
+    }
+}

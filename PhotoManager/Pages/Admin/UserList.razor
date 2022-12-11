@@ -1,0 +1,90 @@
+@page "/admin/user_list/{QueryStart:int?}"
+@attribute [Authorize(Policy = "AdminOnly")]
+
+@layout AdminLayout
+
+@using Microsoft.AspNetCore.Identity
+
+@inject UserManager<IdentityUser> userManager
+@inject NavigationManager Navigator
+
+@implements IDisposable
+
+<PageTitle>Manage users - Photo Manager (Admin console)</PageTitle>
+
+<PageHeadTitle TitleContent="Users" />
+
+@if (_users is not null)
+{
+    <h2 class="text-xl mb-6">@_users.Count() records</h2>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        @foreach (var user in _users)
+        {
+            <div class="w-full p-3 rounded-lg border border-gray-200 h-48">
+                <div class="flex flex-col gap-3">
+                    <div>
+                        <h3 class="text-gray-700 font-medium">User name</h3>
+                        <span class="text-gray-500 text-sm">@user.UserName</span>
+                    </div>
+                    <div>
+                        <h3 class="text-gray-700 font-medium">Email address</h3>
+                        <span class="text-gray-500 text-sm">@user.Email</span>
+                    </div>
+                    <div class="flex gap-3">
+                        <button class="px-4 py-1 text-sky-400 w-full text-sm border rounded border-sky-400 hover:bg-sky-400 hover:text-white">Edit</button>
+                        <button class="px-4 py-1 text-rose-400 w-full text-sm border rounded border-rose-400 hover:bg-rose-400 hover:text-white">Delete</button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<div class="mt-8 flex flex-row justify-between">
+    @if (QueryStart != 0)
+    {
+        <button class="@PageBtnStyle" @onclick="MoveToPrevious">Previous</button>
+    }
+    else
+    {
+        <span></span>
+    }
+    <span class="text-gray-600 my-auto"> page @(QueryStart + 1)</span>
+    <button class="@PageBtnStyle" @onclick="MoveToNext">Next</button>
+</div>
+
+@code {
+
+    [Parameter] public int QueryStart { get; set; } = 0;
+
+    IQueryable<IdentityUser>? _users;
+
+    private string PageBtnStyle = "px-6 py-2 border border-cyan-600 text-cyan-600 rounded";
+
+    protected override void OnParametersSet()
+    {
+        _users = userManager.Users.OrderBy(s => s.UserName).Skip(QueryStart * 30);
+
+        base.OnParametersSet();
+    }
+
+    private void MoveToPrevious()
+    {
+        if (QueryStart > 0)
+        {
+            Navigator.NavigateTo($"/admin/user_list/{QueryStart - 1}");
+        }
+    }
+
+    private void MoveToNext()
+    {
+        Navigator.NavigateTo($"/admin/user_list/{QueryStart + 1}");
+    }
+
+    public void Dispose()
+    {
+        _users = null;
+    }
+
+}       

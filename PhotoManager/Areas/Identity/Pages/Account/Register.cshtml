@@ -1,0 +1,80 @@
+﻿@page
+@model RegisterModel
+@{
+    ViewData["Title"] = "Register";
+}
+
+<div class="flex flex-col sm:flex-row h-full">
+    <div class="md:m-auto basis-3/4">
+        <section class="p-10 text-gray-600 flex flex-col gap-6">
+            <form id="registerForm" asp-route-returnUrl="@Model.ReturnUrl" method="post">
+                <div class="flex flex-col gap-6">
+                    <h1 class="text-3xl font-light">@ViewData["Title"]</h1>
+
+                    <div asp-validation-summary="ModelOnly" class="text-rose-600 font-medium"></div>
+                    
+                    <div class="flex flex-col gap-3">
+                        <p>User name</p>
+                        <input asp-for="Input.Email" class="w-full border rounded p-3" autocomplete="username" aria-required="true" />
+                        <span asp-validation-for="Input.Email" class="text-rose-600 text-sm"></span>
+                    </div>
+
+                    <div class="flex flex-col gap-3">
+                        <p>Password</p>
+                        <input asp-for="Input.Password" class="w-full border rounded p-3" autocomplete="new-password" aria-required="true" />
+                        <span asp-validation-for="Input.Password" class="text-rose-600 text-sm"></span>
+                    </div>
+
+                    <div class="flex flex-col gap-3">
+                        <p>Password confirmation</p>
+                        <input asp-for="Input.ConfirmPassword" class="w-full border rounded p-3" autocomplete="new-password" aria-required="true" />
+                        <span asp-validation-for="Input.ConfirmPassword" class="text-rose-600 text-sm"></span>
+                    </div>
+
+                    <button id="registerSubmit" type="submit" 
+                    class="border rounded p-3 w-64 border-sky-400 hover:bg-sky-400 hover:text-white">Register</button>
+                </div>
+            </form>
+
+            <div>
+                <a class="text-rose-400 font-medium" href="/Identity/Account/Login">Return to the Login page</a>
+            </div>
+            
+        </section>
+    </div>
+
+    <div class="md:m-auto basis-3/4">
+        <section>
+            <h3>Use another service to register.</h3>
+            <hr />
+            @{
+                if ((Model.ExternalLogins?.Count ?? 0) == 0)
+                {
+                    <div>
+                        <p>
+                            There are no external authentication services configured. See this <a href="https://go.microsoft.com/fwlink/?LinkID=532715">article
+                            about setting up this ASP.NET application to support logging in via external services</a>.
+                        </p>
+                    </div>
+                }
+                else
+                {
+                    <form id="external-account" asp-page="./ExternalLogin" asp-route-returnUrl="@Model.ReturnUrl" method="post" class="form-horizontal">
+                        <div>
+                            <p>
+                                @foreach (var provider in Model.ExternalLogins)
+                                {
+                                    <button type="submit" class="btn btn-primary" name="provider" value="@provider.Name" title="Log in using your @provider.DisplayName account">@provider.DisplayName</button>
+                                }
+                            </p>
+                        </div>
+                    </form>
+                }
+            }
+        </section>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,77 @@
+@page "/directory/tag/find"
+
+@using PhotoManager.Data
+@using Microsoft.EntityFrameworkCore
+
+@inject IDbContextFactory<PhotoDbContext> PhotoDb
+@inject NavigationManager Navigator
+
+@implements IDisposable
+
+<PageTitle>[Directory / Tag] Find photos by tags - Photo Manager</PageTitle>
+
+<GoToTopButton Href="/directory/tag" />
+
+<PageHeadTitle TitleContent="Find photos by tags" />
+
+<EditForm Model="searchBoxData" OnValidSubmit="FindPhoto">
+    <div class="flex gap-3 my-3">
+        <InputText class="px-2 py-2 border border-sky-400 rounded w-full basis-4/5 placeholder:italic placeholder:text-slate-400 placeholder:text-sm"
+                   placeholder="Find photos by tags" @bind-Value="searchBoxData.text" />
+        <button type="submit" class="border border-sky-400 rounded px-3 py-2 basis-1/5 hover:bg-sky-400 hover:text-white">Search</button>
+    </div>
+</EditForm>
+
+<MediaDateGrid photos="photos" />
+
+@code {
+
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string[]? Name { get; set; }
+
+    private PhotoDbContext? photoDbContext;
+    private IQueryable<Article>? articles;
+    private IQueryable<Photo>? photos;
+
+    private SearchBoxType searchBoxData = new();
+
+    protected override void OnInitialized()
+    {
+        if (Name is null || !Name.Any())
+        {
+            Navigator.NavigateTo("/directory/tag");
+        }
+
+        photoDbContext = PhotoDb.CreateDbContext();
+
+        articles = photoDbContext.Articles
+        .Include(s => s.ArticleTags)
+        .Include(s => s.Photo);
+
+        foreach (string item in Name)
+        {
+            articles = articles.Where(s => s.ArticleTags.Any(s => s.Name == item));
+
+            searchBoxData.Append(item);
+        }
+
+        photos = articles.Select(s => s.Photo);
+
+        articles = null;
+
+        base.OnInitialized();
+    }
+
+    private void FindPhoto()
+    {
+        Navigator.NavigateTo(searchBoxData.GetTagSearchUrl());
+    }
+
+    public void Dispose()
+    {
+        photoDbContext = null;
+        articles = null;
+        photos = null;
+    }
+}

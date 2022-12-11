@@ -1,0 +1,260 @@
+@page "/admin/assets/photos/{PhotoId:guid}"
+
+@layout AdminLayout
+
+@attribute [Authorize(Policy = "AdminOnly")]
+
+@using PhotoManager.Data
+@using Microsoft.EntityFrameworkCore
+@using PhotoManager.Api.v1.Helper.Images
+@using PhotoManager.Api.v1.Messages
+
+@inject NavigationManager Navigator
+@inject IDbContextFactory<PhotoDbContext> PhotoDb
+@inject MessagePopup Popup
+@inject IJSRuntime JS
+
+@implements IDisposable
+@implements IModal
+
+<PageTitle>Edit a photo / article - Photo Manager (Admin console)</PageTitle>
+
+<GoToTopButton Href="/admin/assets/photos" PreviousButton="true" />
+
+<PageHeadTitle TitleContent="Edit photo information / article" />
+
+@if (photo is not null)
+{
+    <div class="flex flex-col gap-6">
+        <div class="border rounded p-6">
+            @{
+                var ThumbnailLink = $"/thumbnail/{photo.PhotoId}/preview_4x.webp";
+                var OriginalLink = $"/thumbnail/{photo.PhotoId}/preview_2x.webp";
+            }
+            <div>
+                <h3 class="text-2xl mb-3 ">Preview</h3>
+                <ImageViewer GridThumbnail="true" PhotoId="@photo.PhotoId" />
+            </div>
+        </div>
+
+        <div class="border rounded p-6">
+            <h2 class="text-2xl mb-3">Edit metadata</h2>
+            <EditForm Model="photo" OnValidSubmit="RegisterMetadata">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                    <div>
+                        <p class="mb-3">File name</p>
+                        <p class="@ReadonlyStyle">@photo.File_name</p>
+                    </div>
+                    <div>
+                        <p class="mb-3">Resolution</p>
+                        <p class="@ReadonlyStyle mb-0">@photo.Width * @photo.Height</p>
+                        <p class="@ReadonlyStyle text-sm">( @(photo.Width * photo.Height / 1_000_000) Mega Pixels )</p>
+                    </div>
+                    <div>
+                        <p class="mb-3">Manufacturer</p>
+                        <InputText class="@TextBoxStyle" @bind-Value="photo.Maker" />
+                    </div>
+                    <div>
+                        <p class="mb-3">Model</p>
+                        <InputText class="@TextBoxStyle" @bind-Value="photo.Model" />
+                    </div>
+                    <div>
+                        <p class="mb-3">Digitized datetime</p>
+                        <InputDate class="@TextBoxStyle" @bind-Value="photo.Original_datetime" />
+                    </div>
+                    <div>
+                        <p class="mb-3">Export datetime</p>
+                        <InputDate class="@TextBoxStyle" @bind-Value="photo.Export_datetime" />
+                    </div>
+                    <div>
+                        <p class="mb-3">Aperture (f-value)</p>
+                        <InputNumber class="@TextBoxStyle" @bind-Value="photo.Aperture" />
+                    </div>
+                    <div>
+                        <p class="mb-3">Shutter speed</p>
+                        <InputText class="@TextBoxStyle" @bind-Value="photo.Shutter_speed_text" />
+                    </div>
+                    <div>
+                        <p class="mb-3">ISO</p>
+                        <InputNumber class="@TextBoxStyle" @bind-Value="photo.Iso" />
+                    </div>
+                    <div>
+                        <p class="mb-3">Focal length</p>
+                        <input type="number" class="@TextBoxStyle" @bind="ChangeFocalLength" />
+                    </div>
+                    @if (photo.Focal_length != photo.Focal_length_in_35)
+                    {
+                        <div>
+                            <p class="mb-3">Focal length (in 35mm)</p>
+                            <InputNumber class="@TextBoxStyle" readonly @bind-Value="photo.Focal_length_in_35" />
+                        </div>
+                    }
+                    <div>
+                        <p class="mb-3">GPS Latitude</p>
+                        <InputNumber class="@TextBoxStyle" @bind-Value="photo.Gps_latitude" />
+                    </div>
+                    <div>
+                        <p class="mb-3">GPS Longitude</p>
+                        <InputNumber class="@TextBoxStyle" @bind-Value="photo.Gps_longitude" />
+                    </div>
+
+                </div>
+
+                <div class="flex flex-row gap-3">
+                    <button type="submit" class="border rounded w-full py-2 border-sky-400 text-sky-400 hover:bg-sky-400 hover:text-white">Edit</button>
+                    <button class="border rounded w-full py-2 border-rose-400 text-rose-400 hover:bg-rose-400 hover:text-white" @onclick="ResetMetadata">Reset</button>
+                </div>
+
+            </EditForm>
+        </div>
+
+        @if (!CheckExtensions.IsRAW(photo.File_path))
+        {
+            <div class="border rounded p-6">
+                <h2 class="text-2xl mb-3">Edit article</h2>
+                <EditForm Model="article" OnValidSubmit="EditArticle" Context="ArticleContext">
+                    <div class="flex flex-col gap-6 mb-6">
+                        <div>
+                            <p class="mb-3">Body</p>
+                            <InputTextArea class="border p-3 rounded text-gray-600 w-full" @bind-Value="article.Content" />
+                        </div>
+                        <div>
+                            <p class="mb-3">Tags</p>
+                                <EditForm Model="newTagString" OnValidSubmit="AddArticleTag">
+                                    <div class="flex gap-3 mb-6">
+                                        <InputText class="@TextBoxStyle" @bind-Value="newTagString.Text" />
+                                        <button type="submit" 
+                                            class="basis-1/4 sm:basis-1/5 border rounded text-gray-600 px-3 py-2 m-auto w-full hover:bg-sky-400 hover:text-white">
+                                            + add
+                                        </button>
+                                    </div>
+                                </EditForm>
+                            <div class="flex flex-wrap gap-3">
+                                @foreach(var item in article.ArticleTags.OrderBy(s => s.Name))
+                                {
+                                    <div class="border px-3 py-2 rounded text-sm text-gray-600 cursor-pointer" 
+                                    @onclick="() => RemoveArticleTag(item)">@item.Name</div>
+                                }
+                            </div>
+                        </div>
+                        <div class="flex gap-6 justify-between sm:justify-start">
+                            @if (article.Publish_time.Ticks != 0)
+                            {
+                                DateTime publishTime = (DateTime)article.Publish_time;
+                                DateTime editTime = (DateTime)article.Edit_time;
+                                string TimeDisplayString = "text-sm text-gray-600 mb-1";
+
+                                @if (publishTime.Ticks == editTime.Ticks)
+                                {
+                                    <div>
+                                        <p class="@TimeDisplayString">@publishTime.ToLongDateString()</p>
+                                        <p class="@TimeDisplayString">@publishTime.ToLongTimeString()</p>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div>
+                                        <h4 class="mb-2">Published</h4>
+                                        <p class="@TimeDisplayString">@publishTime.ToLongDateString()</p>
+                                        <p class="@TimeDisplayString">@publishTime.ToLongTimeString()</p>
+                                    </div>
+                                    <div>
+                                        <h4 class="mb-2">Edited</h4>
+                                        <p class="@TimeDisplayString">@editTime.ToLongDateString()</p>
+                                        <p class="@TimeDisplayString">@editTime.ToLongTimeString()</p>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    <div class="flex flex-row gap-3">
+                        <button type="submit" class="border rounded w-full py-2 border-sky-400 text-sky-400 hover:bg-sky-400 hover:text-white">Edit</button>
+                        <button disabled class="border rounded w-full py-2 border-rose-400 text-rose-400 hover:bg-rose-400 hover:text-white">Reset</button>
+                    </div>
+
+                </EditForm>
+            </div>
+
+            <div class="border rounded p-6">
+                <h2 class="text-2xl mb-3">Delete</h2>
+                <p class="mb-3">You cannot recover the photo after deletion.</p>
+                <button class="px-4 py-2 border-rose-400 text-rose-400 border rounded"
+                        @onclick="ChangeModalHiddenState">
+                    Delete
+                </button>
+            </div>
+
+            <Modal HiddenSwitch="@HiddenSwitch">
+                <Title>Are you sure?</Title>
+                <Description>This action remove the photo and the index permanently.</Description>
+                <ModalButtons>
+                    <button class="border rounded px-4 py-2" @onclick="DeletePhoto">Yes</button>
+                    <button class="border rounded px-4 py-2" @onclick="ChangeModalHiddenState">No</button>
+                </ModalButtons>
+            </Modal>
+        }
+
+    </div>
+}
+else
+{
+    <h2 class="text-3xl mb-3">Could not find any photo by ID you provided.</h2>
+}
+
+
+@code{
+    [Parameter] public Guid PhotoId { get; set; }
+
+    private PhotoDbContext? photoDbContext;
+    private Photo? photo;
+    private Article? article;
+    private NewTag newTagString = new();
+
+    protected override void OnInitialized()
+    {
+        photoDbContext = PhotoDb.CreateDbContext();
+
+        base.OnInitialized();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (photoDbContext is not null)
+        {
+            try
+            {
+                photo = photoDbContext.Photos.Single(s => s.PhotoId == PhotoId);
+            }
+            catch
+            {
+                Navigator.NavigateTo("/admin/assets/photos");
+            }
+
+            article = photoDbContext.Articles
+            .Include(s => s.ArticleTags)
+            .Single(s => s.PhotoId == PhotoId);
+
+            base.OnParametersSet();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("ScrollToTop");
+        }
+    }
+
+    public void Dispose()
+    {
+        photoDbContext = null;
+        photo = null;
+        article = null;
+    }
+}
+
+
+
+

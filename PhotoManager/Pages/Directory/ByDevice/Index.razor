@@ -1,0 +1,128 @@
+@page "/directory/device/{Manufacturer?}"
+
+@using PhotoManager.Data
+@using Microsoft.EntityFrameworkCore
+
+@inject IDbContextFactory<PhotoDbContext> PhotoDb
+@inject NavigationManager Navigator
+@inject IJSRuntime JS
+
+@implements IDisposable
+
+@if (Manufacturer is not null)
+{
+    var Title = $"{Manufacturer} devices";
+    <PageTitle>[Directory / Devices] @Manufacturer devices - Photo Manager</PageTitle>
+    <GoToTopButton Href="/directory" ParentHref="/directory/device" />
+    <PageHeadTitle TitleContent="@Title" />
+}
+else
+{
+    <PageTitle>[Directory] Devices - Photo Manager</PageTitle>
+    <GoToTopButton Href="/directory" />
+    <PageHeadTitle TitleContent="Devices" />
+}
+
+
+@if (photos is not null)
+{
+    <div class="flex flex-col gap-6">
+        <div class="flex flex-col gap-4 p-5 bg-slate-50">
+            <h4 class="text-lg font-medium">Group by devices</h4>
+            <div class="flex flex-row gap-5">
+                @foreach (var device in photos.Select(s => s.Maker).Distinct())
+                {
+                    <a class="border px-4 py-2 rounded border-sky-400 hover:bg-sky-400 hover:text-white" href="/directory/device/@device">@device</a>
+                }
+                @if (Manufacturer is not null)
+                {
+                    <a class="border px-4 py-2 rounded border-sky-400 hover:bg-sky-400 hover:text-white" href="/directory/device/">all devices</a>
+                }
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+            @{
+                var DistinctModels = photos.Select(s => new { s.Maker, s.Model }).Distinct().ToList();
+            }
+            @foreach (var model in DistinctModels)
+            {
+                var ThumbnailPath = photos
+                .Where(t => t.Maker == model.Maker && t.Model == model.Model)
+                .OrderBy(s => Guid.NewGuid())
+                .Take(1);
+
+                <div class="@BoxBorder">
+                    <a href="/directory/device/@model.Maker/@model.Model">
+                        <img class="w-full h-48 mb-6 object-cover" src="/thumbnail/@(ThumbnailPath.First().PhotoId)/thumbnail.webp" />
+                        <div>
+                            <h3 class="text-2xl font-medium">@model.Model</h3>
+                            @if (Manufacturer is null)
+                            {
+                                <span class="text-gray-400">@model.Maker</span>
+                            }
+                        </div>
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <h1 class="text-4xl mb-6">Could not get any photo information from the server!</h1>
+}
+
+
+
+
+@code {
+    [Parameter] public string? Manufacturer { get; set; }
+    private string BoxBorder = "border rounded hover:border-sky-400 p-4";
+
+    PhotoDbContext? photoDbContext;
+    IQueryable<Photo>? photos;
+
+    protected override void OnInitialized()
+    {
+        photoDbContext = PhotoDb.CreateDbContext();
+
+        base.OnInitialized();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (Manufacturer is not null)
+        {
+            photos = photoDbContext.Photos;
+            photos = photos.Where(s => s.Maker.ToLower() == Manufacturer.ToLower());
+        }
+        else
+        {
+            photos = photoDbContext.Photos;
+        }
+
+        photos = photos.Where(s => s.Model != "unknown");
+
+        base.OnParametersSet();
+
+        if (!photos.Any())
+        {
+            Navigator.NavigateTo("/");
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await JS.InvokeVoidAsync("ScrollToTop");
+
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    public void Dispose()
+    {
+        photoDbContext = null;
+        photos = null;
+    }
+
+}
